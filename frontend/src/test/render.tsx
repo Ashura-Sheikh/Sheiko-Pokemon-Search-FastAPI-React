@@ -1,3 +1,4 @@
+import { ThemeProvider } from '@mui/material/styles'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
@@ -5,12 +6,13 @@ import { vi } from 'vitest'
 
 import App from '../App'
 import type { Pokemon, PokemonMoves } from '../api/types'
+import { theme } from '../theme'
 
 export const SAMPLE: Pokemon[] = [
-  { id: 1, name: 'bulbasaur', generation: 1, types: ['grass', 'poison'], sprite_url: '/s/1.png' },
-  { id: 25, name: 'pikachu', generation: 1, types: ['electric'], sprite_url: '/s/25.png' },
-  { id: 122, name: 'mr-mime', generation: 1, types: ['psychic', 'fairy'], sprite_url: '/s/122.png' },
-  { id: 152, name: 'chikorita', generation: 2, types: ['grass'], sprite_url: '/s/152.png' },
+  { id: 1, name: 'bulbasaur', generation: 1, types: ['grass', 'poison'], sprite_url: '/s/1.png', favourite_count: 0, comment_count: 0 },
+  { id: 25, name: 'pikachu', generation: 1, types: ['electric'], sprite_url: '/s/25.png', favourite_count: 0, comment_count: 0 },
+  { id: 122, name: 'mr-mime', generation: 1, types: ['psychic', 'fairy'], sprite_url: '/s/122.png', favourite_count: 0, comment_count: 0 },
+  { id: 152, name: 'chikorita', generation: 2, types: ['grass'], sprite_url: '/s/152.png', favourite_count: 0, comment_count: 0 },
 ]
 
 /** Moves per Pokémon id, already grouped and sorted the way the backend returns them.
@@ -59,6 +61,12 @@ export function mockBackend(options: { signedInAs?: Partial<FakeUser> } = {}) {
     users.push(current)
   }
   const me = (u: FakeUser) => ({ id: u.id, username: u.username, nickname: u.nickname })
+  /** A Pokémon with live counts, like the real backend's read_with_counts. */
+  const withCounts = (p: Pokemon): Pokemon => ({
+    ...p,
+    favourite_count: [...favourites.values()].filter((set) => set.has(p.id)).length,
+    comment_count: comments.filter((c) => c.pokemon_id === p.id).length,
+  })
 
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost')
@@ -114,7 +122,7 @@ export function mockBackend(options: { signedInAs?: Partial<FakeUser> } = {}) {
     if (url.pathname === '/api/me/favourites') {
       if (!current) return json({ detail: 'Sign in to do this' }, 401)
       const ids = [...(favourites.get(current.id) ?? [])].sort((a, b) => a - b)
-      return json(SAMPLE.filter((p) => ids.includes(p.id)))
+      return json(SAMPLE.filter((p) => ids.includes(p.id)).map(withCounts))
     }
     const fav = url.pathname.match(/^\/api\/me\/favourites\/(\d+)$/)
     if (fav) {
@@ -177,7 +185,7 @@ export function mockBackend(options: { signedInAs?: Partial<FakeUser> } = {}) {
       if (p.get('type')) items = items.filter((x) => x.types.includes(p.get('type')!))
       const limit = Number(p.get('limit'))
       const offset = Number(p.get('offset'))
-      return json({ total: items.length, limit, offset, items: items.slice(offset, offset + limit) })
+      return json({ total: items.length, limit, offset, items: items.slice(offset, offset + limit).map(withCounts) })
     }
     const moves = url.pathname.match(/^\/api\/pokemon\/(\d+)\/moves$/)
     if (moves) {
@@ -188,7 +196,7 @@ export function mockBackend(options: { signedInAs?: Partial<FakeUser> } = {}) {
     const one = url.pathname.match(/^\/api\/pokemon\/(\d+)$/)
     if (one) {
       const found = SAMPLE.find((x) => x.id === Number(one[1]))
-      return found ? json(found) : json({ detail: 'Pokémon not found' }, 404)
+      return found ? json(withCounts(found)) : json({ detail: 'Pokémon not found' }, 404)
     }
     return json({ detail: 'Not Found' }, 404)
   })
@@ -205,10 +213,12 @@ export function mockBackend(options: { signedInAs?: Partial<FakeUser> } = {}) {
 export function renderAt(path: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
+    <ThemeProvider theme={theme} defaultMode="light">
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[path]}>
         <App />
       </MemoryRouter>
-    </QueryClientProvider>,
+    </QueryClientProvider>
+    </ThemeProvider>,
   )
 }

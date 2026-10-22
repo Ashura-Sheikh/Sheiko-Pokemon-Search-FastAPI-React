@@ -6,6 +6,8 @@ export interface Pokemon {
   generation: number
   types: string[]
   sprite_url: string
+  favourite_count: number // how many users have it in their favourites
+  comment_count: number
 }
 
 export interface PokemonPage {

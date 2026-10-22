@@ -11,6 +11,7 @@ import { useLocation, useNavigate, useParams } from 'react-router'
 
 import { ApiError, getPokemon } from '../api/client'
 import { CommentsSection } from '../components/CommentsSection'
+import { CountPills } from '../components/CountPills'
 import { FavouriteButton } from '../components/FavouriteButton'
 import { MovesSection } from '../components/MovesSection'
 import { TypeChip } from '../components/TypeChip'
@@ -75,6 +76,11 @@ export function PokemonDetailPage() {
                   <TypeChip key={type} type={type} />
                 ))}
               </Stack>
+              <CountPills
+                favourites={query.data.favourite_count}
+                comments={query.data.comment_count}
+                align="flex-start"
+              />
               <div>
                 <FavouriteButton pokemonId={query.data.id} />
               </div>

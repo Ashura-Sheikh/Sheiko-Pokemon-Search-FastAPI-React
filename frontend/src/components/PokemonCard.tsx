@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import CardActionArea from '@mui/material/CardActionArea'
 import CardContent from '@mui/material/CardContent'
@@ -8,6 +9,7 @@ import { Link } from 'react-router'
 
 import type { Pokemon } from '../api/types'
 import { displayName, pokedexNumber } from '../lib/format'
+import { CountPills } from './CountPills'
 import { TypeChip } from './TypeChip'
 
 export function PokemonCard({ pokemon }: { pokemon: Pokemon }) {
@@ -33,6 +35,9 @@ export function PokemonCard({ pokemon }: { pokemon: Pokemon }) {
               <TypeChip key={type} type={type} />
             ))}
           </Stack>
+          <Box sx={{ mt: 1 }}>
+            <CountPills favourites={pokemon.favourite_count} comments={pokemon.comment_count} />
+          </Box>
         </CardContent>
       </CardActionArea>
     </Card>

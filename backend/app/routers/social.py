@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Response, status
 from sqlmodel import Session, col, select
 
 from app.auth import CurrentUser, OptionalUser, require_same_site, utcnow
+from app.counts import read_with_counts
 from app.db import get_session
 from app.models import (
     COMMENT_MAX,
@@ -49,7 +50,7 @@ def list_favourites(user: CurrentUser, db: SessionDep) -> list[PokemonRead]:
         .where(Favourite.user_id == user.id)
         .order_by(Pokemon.id)
     )
-    return [PokemonRead.from_db(p) for p in db.exec(stmt).all()]
+    return read_with_counts(db, db.exec(stmt).all())
 
 
 @router.put("/me/favourites/{pokemon_id}", status_code=status.HTTP_204_NO_CONTENT)
