@@ -21,8 +21,3 @@ app.include_router(social.router)
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
-
-
-@app.get("/hello-sheiko")
-def hello_sheiko():
-    return {"message": "Hello Sheiko - What you thinking"}

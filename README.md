@@ -233,6 +233,8 @@ Work goes through small branches and pull requests, each merged after review wit
 
 Built with AI coding agents under my design, review and release control. Every change went through a pull request with automated checks before I merged it.
 
-## Credits
+## Licence and credits
 
-Pokémon data from [PokeAPI](https://pokeapi.co/) (cached locally per its fair-use policy). Sprites from the [PokeAPI sprites](https://github.com/PokeAPI/sprites) repository. Pokémon and Pokémon character names are trademarks of Nintendo, Creatures Inc. and GAME FREAK inc. This is a private, non-commercial learning project.
+The code is released under the [MIT licence](LICENSE). The licence covers this project's code only, not Pokémon names, data or images.
+
+Pokémon data comes from [PokeAPI](https://pokeapi.co/). It's downloaded when you run the seed script and cached locally, as PokeAPI's fair-use policy asks; no PokeAPI data is stored in this repository. Pokémon sprites are © Nintendo / Game Freak. The app's browser page loads them at runtime from the [PokeAPI sprites](https://github.com/PokeAPI/sprites) repository; this project doesn't store or distribute them. Pokémon and Pokémon character names are trademarks of Nintendo, Creatures Inc. and GAME FREAK inc. This is a non-commercial learning project, not affiliated with or endorsed by them.
