@@ -1,15 +1,13 @@
 [project]
-name = "github-python-fastapi"
+name = "pokemon-app-backend"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
+description = "FastAPI backend for the Pokémon search and comments app"
 authors = [
     { name = "Sheikh M Sahil", email = "55999445+Ashura-Sheikh@users.noreply.github.com" }
 ]
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.159.1",
-    "imagekitio>=5.11.0",
     "python-dotenv>=1.2.4",
     "uvicorn>=0.54.0",
 ]
@@ -25,5 +23,6 @@ testpaths = ["tests"]
 
 [dependency-groups]
 dev = [
+    "httpx2>=2.16.0",
     "pytest>=9.1.1",
 ]
