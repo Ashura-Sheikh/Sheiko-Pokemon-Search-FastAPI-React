@@ -1,0 +1,29 @@
+[project]
+name = "github-python-fastapi"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Sheikh M Sahil", email = "55999445+Ashura-Sheikh@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.159.1",
+    "imagekitio>=5.11.0",
+    "python-dotenv>=1.2.4",
+    "uvicorn>=0.54.0",
+]
+
+[tool.uv]
+# Plain app, not an installable package: uv won't try to build this project.
+# Adding libraries still works as normal: uv add <name>
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
