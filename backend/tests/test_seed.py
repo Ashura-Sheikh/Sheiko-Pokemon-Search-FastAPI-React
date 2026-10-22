@@ -84,13 +84,23 @@ def test_check_complete_rejects_duplicates():
         check_complete(species, [(1, 1, "grass"), (1, 1, "poison"), (4, 1, "fire")])
 
 
-def test_write_db_replaces_existing_rows(session):
+def test_write_db_is_safe_to_rerun(session):
     species = parse_generation(GEN1)
     types = parse_type(GRASS, {1, 4}) + parse_type(FIRE, {1, 4})
     write_db(session, species, types)
     write_db(session, species, types)  # re-running must not duplicate anything
-    assert [p.name for p in session.exec(select(Pokemon).order_by(Pokemon.id))] == [
-        "bulbasaur",
-        "charmander",
-    ]
-    assert len(session.exec(select(PokemonType)).all()) == 2
+    ids = [p.id for p in session.exec(select(Pokemon).order_by(Pokemon.id))]
+    assert ids == sorted(set(ids))  # no duplicates
+    assert {1, 4} <= set(ids)
+    # Types belong to the seed: replaced, not added to.
+    assert sorted(
+        (t.pokemon_id, t.type_name) for t in session.exec(select(PokemonType))
+    ) == [(1, "grass"), (4, "fire")]
+
+
+def test_write_db_updates_pokemon_in_place(session):
+    """Re-seeding updates Pokémon rows instead of deleting them, so users'
+    favourites and comments (which point at them) survive a re-seed."""
+    write_db(session, [(1, "bulbasaur-renamed", 1)], [(1, 1, "grass")])
+    assert session.get(Pokemon, 1).name == "bulbasaur-renamed"
+    assert session.get(Pokemon, 25) is not None  # not in this seed, still there

@@ -32,6 +32,18 @@ export interface Me {
   nickname: string | null
 }
 
+export interface CommentRead {
+  id: number
+  pokemon_id: number
+  author: string // the author's public nickname
+  body: string
+  created_at: string // ISO timestamp (UTC)
+  updated_at: string | null // set if the author edited it
+  mine: boolean // written by the signed-in user
+}
+
+export const COMMENT_MAX = 500
+
 export interface SearchParams {
   q?: string
   generation?: number

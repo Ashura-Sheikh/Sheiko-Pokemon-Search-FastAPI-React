@@ -136,3 +136,43 @@ class Me(SQLModel):
     id: int
     username: str
     nickname: str | None
+
+
+# --- Favourites and comments ---------------------------------------------------
+
+COMMENT_MAX = 500
+
+
+class Favourite(SQLModel, table=True):
+    """A Pokémon on a user's favourites list. One row per (user, Pokémon)."""
+
+    user_id: int = Field(foreign_key="app_user.id", primary_key=True)
+    pokemon_id: int = Field(foreign_key="pokemon.id", primary_key=True)
+    created_at: datetime
+
+
+class Comment(SQLModel, table=True):
+    """A signed-in user's comment on a Pokémon (any Pokémon, not only favourites)."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    pokemon_id: int = Field(foreign_key="pokemon.id", index=True)
+    user_id: int = Field(foreign_key="app_user.id", index=True)
+    body: str = Field(max_length=COMMENT_MAX)
+    created_at: datetime
+    updated_at: datetime | None = None  # set when the author edits it
+
+
+class CommentBody(SQLModel):
+    body: str
+
+
+class CommentRead(SQLModel):
+    id: int
+    pokemon_id: int
+    author: str  # the author's public nickname, never their username
+    body: str
+    created_at: datetime
+    updated_at: datetime | None
+    mine: (
+        bool  # True if the signed-in user wrote it (so the page can offer edit/delete)
+    )

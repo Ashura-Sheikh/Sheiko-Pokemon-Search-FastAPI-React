@@ -1,4 +1,4 @@
-import type { Me, Pokemon, PokemonMoves, PokemonPage, SearchParams } from './types'
+import type { CommentRead, Me, Pokemon, PokemonMoves, PokemonPage, SearchParams } from './types'
 
 export class ApiError extends Error {
   readonly status: number
@@ -41,7 +41,7 @@ function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   return request<T>(path, { signal, headers: { Accept: 'application/json' } })
 }
 
-function sendJson<T>(method: 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown) {
+function sendJson<T>(method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown) {
   return request<T>(path, {
     method,
     headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...CSRF_HEADER },
@@ -75,6 +75,38 @@ export function logout() {
 
 export function setNickname(nickname: string) {
   return sendJson<Me>('PATCH', '/api/me', { nickname })
+}
+
+// --- Favourites ------------------------------------------------------------------
+
+export function listFavourites(signal?: AbortSignal) {
+  return getJson<Pokemon[]>('/api/me/favourites', signal)
+}
+
+export function addFavourite(pokemonId: number) {
+  return sendJson<void>('PUT', `/api/me/favourites/${pokemonId}`)
+}
+
+export function removeFavourite(pokemonId: number) {
+  return sendJson<void>('DELETE', `/api/me/favourites/${pokemonId}`)
+}
+
+// --- Comments --------------------------------------------------------------------
+
+export function listComments(pokemonId: number, signal?: AbortSignal) {
+  return getJson<CommentRead[]>(`/api/pokemon/${pokemonId}/comments`, signal)
+}
+
+export function addComment(pokemonId: number, body: string) {
+  return sendJson<CommentRead>('POST', `/api/pokemon/${pokemonId}/comments`, { body })
+}
+
+export function editComment(commentId: number, body: string) {
+  return sendJson<CommentRead>('PATCH', `/api/comments/${commentId}`, { body })
+}
+
+export function deleteComment(commentId: number) {
+  return sendJson<void>('DELETE', `/api/comments/${commentId}`)
 }
 
 /** Builds the query string, leaving out anything empty. */

@@ -2,9 +2,11 @@
 
 Run from backend/:  uv run alembic upgrade head
 (The app also upgrades automatically on startup; see app/db.py init_db.)
-New migration after changing app/models.py:
+New migration after changing app/models.py (with the backend server stopped):
     uv run alembic revision --autogenerate -m "what changed"
-then read the generated file before committing it.
+    uvx ruff@0.17.1 check --fix migrations && uvx ruff@0.17.1 format migrations
+then read the generated file before committing it. The tests fail if the models
+and migrations disagree (tests/test_migrations.py).
 """
 
 from alembic import context
