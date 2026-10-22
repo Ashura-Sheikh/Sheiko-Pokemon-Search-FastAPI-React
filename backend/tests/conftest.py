@@ -9,6 +9,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
 from app.app import app
+from app.auth import CSRF_HEADER, CSRF_VALUE, login_limiter
 from app.db import get_session
 from app.models import Pokemon, PokemonMove, PokemonType
 
@@ -64,3 +65,19 @@ def client(session):
     app.dependency_overrides[get_session] = lambda: session
     yield TestClient(app)
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def api(session):
+    """A client that sends the header our frontend sends on every change request."""
+    app.dependency_overrides[get_session] = lambda: session
+    yield TestClient(app, headers={CSRF_HEADER: CSRF_VALUE})
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def _fresh_login_limiter():
+    """The failed-login counter is shared in memory; start every test clean."""
+    login_limiter.reset()
+    yield
+    login_limiter.reset()

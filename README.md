@@ -2,13 +2,13 @@
 
 A full-stack app to search every Pokémon from Generation I to IX (1,025 species) by name or number, filter by generation and type, and open a detail page for each.
 
-**Working now:** search, filters, pagination, and detail pages with each Pokémon's Scarlet/Violet moves, on a FastAPI + SQLite backend and a React + TypeScript frontend, with CI on every pull request.
+**Working now:** search, filters, pagination, and detail pages with each Pokémon's Scarlet/Violet moves; browse as a guest or sign in with a username and password and choose a public nickname. FastAPI + SQLite backend, React + TypeScript frontend, CI on every pull request.
 
-**Next:** sign-in (guest or username/password), nicknames, and comments on favourite Pokémon. See [Roadmap](#roadmap).
+**Next:** favourites and comments. See [Roadmap](#roadmap).
 
 | Layer | Stack |
 |---|---|
-| Backend | Python 3.12, FastAPI, SQLModel (SQLAlchemy + Pydantic), SQLite, uv |
+| Backend | Python 3.12, FastAPI, SQLModel (SQLAlchemy + Pydantic), SQLite with Alembic migrations, Argon2 password hashing, uv |
 | Frontend | React 19, TypeScript 7 (strict), MUI 9, React Router, TanStack Query, Vite |
 | Quality | pytest, Vitest + Testing Library, Ruff, oxlint |
 | Delivery | GitHub Actions (tests, lint, type-check, build, security audits), Dependabot |
@@ -84,6 +84,13 @@ sequenceDiagram
 | **Moves cached trimmed** | A full `/pokemon/{id}` response can be about 700 kB; keeping only move names, methods, levels and games cuts the cache to about 69 MB. Every game is kept, so changing the game filter needs no re-download | `--refresh` re-downloads everything |
 | **Scarlet/Violet moves only** (including its DLC) | One clear, complete game. PokeAPI's list of games isn't in date order, and the newest games' move data is still partial | 292 Pokémon aren't in Scarlet/Violet (e.g. Zygarde), so they show "no moves listed" rather than moves from an older game |
 | **Moves are a separate endpoint and request** | The main details show at once; Mew alone has 241 move rows | Two requests per detail page |
+| **Server-side sessions in an HttpOnly cookie**, not JWTs | A random 256-bit token; the database keeps only its SHA-256, so a leaked database can't sign anyone in. Signing out deletes the row and the token stops working at once. JavaScript can't read the cookie, so injected script can't steal it | One database lookup per signed-in request; sessions don't survive a database wipe |
+| **Argon2id password hashes** (`pwdlib`), 8–64 characters, no forced symbols | The current recommended algorithm; length rules follow NIST SP 800-63B | Hashing is deliberately slow (most of the backend test time) |
+| **Same error for wrong password and unknown username**, with equal work | Doesn't reveal which usernames exist, by message or by response time | Users aren't told which part was wrong |
+| **5 failed sign-ins per username per minute** | Slows password guessing | Kept in memory: resets on restart and wouldn't be shared across several server processes |
+| **Cross-site request check** on every change request: an `X-Requested-By` header, plus refusing `Sec-Fetch-Site: cross-site` | Cookies are sent automatically, so another site could otherwise trigger actions as the user (CSRF). It can't add a custom header without CORS, which this API never allows | The frontend must send the header (one place: `api/client.ts`) |
+| **Username and nickname separate** | The username stays private (it's half of the login); the public nickname can change. Both unique regardless of case | Two names to explain to users |
+| **Alembic migrations** | User data can't be re-created by re-seeding, so schema changes must upgrade the database in place. A test fails if the models and migrations ever disagree | Each model change needs a migration |
 | **Seed refuses to save incomplete data** | A Pokémon with no type, a duplicate number or two types in one slot fails the run instead of quietly producing bad data | A broken upstream response stops the seed until it's looked at |
 | **SQLite** | No server to run; one file; plenty for a read-heavy app of this size | Not for many concurrent writers. Going through SQLModel/SQLAlchemy keeps a later move to PostgreSQL small: the connection settings in `db.py` plus migrations |
 | **Types in their own table** (`pokemon_type`, one row per slot) | Filtering by type is a normal indexed SQL query, and slot order (primary/secondary) is kept | One extra join when reading a Pokémon |
@@ -101,19 +108,23 @@ sequenceDiagram
 ```
 backend/
   app/
-    app.py            FastAPI app, startup (creates tables), health route
-    db.py             SQLite engine and per-request session
-    models.py         Tables (pokemon, pokemon_type) and response models
-    routers/pokemon.py  /api/pokemon, /api/pokemon/{id}, /api/types, /api/generations
+    app.py            FastAPI app, startup (runs migrations), health route
+    db.py             SQLite engine, per-request session, migrations, foreign keys on
+    auth.py           Passwords, sessions, input rules, login limit, cross-site check
+    models.py         Tables (pokemon, pokemon_type, pokemon_move, app_user, user_session)
+    routers/pokemon.py  /api/pokemon, /api/pokemon/{id}(/moves), /api/types, /api/generations
+    routers/auth.py   /api/auth/register, /login, /logout; /api/me
+  migrations/         Alembic: 0001 Pokémon tables, 0002 users and sessions
   scripts/seed_pokemon.py  One-off PokeAPI → SQLite loader (cached, validated)
-  tests/              pytest: API tests on an in-memory database, seed logic tests
+  tests/              pytest: API, sign-in security, migrations, seed logic
   main.py             Runs the server (uvicorn, 127.0.0.1:8000)
 frontend/
   src/
-    api/              Typed API client and response types
-    pages/            SearchPage, PokemonDetailPage, NotFoundPage
-    components/       PokemonCard, TypeChip
-    lib/              Formatting, URL search-param helpers, useDebouncedValue
+    api/              Typed API client (sends the cross-site header) and response types
+    auth/             useMe / useSignIn / useRegister / useSignOut / useSetNickname
+    pages/            Search, PokemonDetail, Auth (sign in / register), Nickname, NotFound
+    components/       PokemonCard, TypeChip, MovesSection, UserMenu
+    lib/              Formatting, URL search params, moves labels, returnPath, useDebouncedValue
     test/             Test setup and a fake backend for page tests
   vite.config.ts      Dev server, /api proxy, test settings
 .github/
@@ -158,7 +169,14 @@ Interactive docs at `/docs` (generated by FastAPI from the code).
 | `GET /api/pokemon/{id}/moves` | Scarlet/Violet moves, grouped by method (level-up, TM, egg, tutor). Level-up sorted by level (0 = learned on evolution), the rest by name. Empty `groups` if the Pokémon isn't in Scarlet/Violet |
 | `GET /api/types` | All types, for filters |
 | `GET /api/generations` | All generations, for filters |
+| `POST /api/auth/register` | `{username, password}`. Creates the account and signs in (sets the session cookie). 409 if the username is taken |
+| `POST /api/auth/login` | `{username, password}`. 401 "Incorrect username or password"; 429 after 5 failures in a minute |
+| `POST /api/auth/logout` | Ends the session on the server and clears the cookie |
+| `GET /api/me` | The signed-in user `{id, username, nickname}`, or 401 for a guest |
+| `PATCH /api/me` | `{nickname}`: set or change the nickname. 409 if taken |
 | `GET /api/health` | Health check |
+
+Change requests (`POST`/`PATCH`/`DELETE`) must send `X-Requested-By: pokemon-app`, or they're refused with 403.
 
 ---
 
@@ -166,8 +184,8 @@ Interactive docs at `/docs` (generated by FastAPI from the code).
 
 | | Command | What's covered |
 |---|---|---|
-| Backend | `cd backend && uv run pytest` | Every endpoint against an in-memory SQLite database (search, filters, pagination, validation, 404s, wildcard escaping), and the seed logic against hand-made PokeAPI-shaped data. No test touches the network or the real database. |
-| Frontend | `cd frontend && npm test` | Pages rendered against a fake backend (results, filters from the URL, empty and error states, unknown routes), the API client, formatting, and the typing delay with a simulated clock so it doesn't depend on machine speed |
+| Backend | `cd backend && uv run pytest` | Every endpoint against an in-memory SQLite database (search, filters, pagination, validation, 404s, wildcard escaping), the seed logic against hand-made PokeAPI-shaped data, sign-in security (hashing, session storage and expiry, logout, the login limit, the cross-site check, cookie flags, nickname rules), and migrations (fresh database matches the models; an older database upgrades without losing data). No test touches the network or the real database. |
+| Frontend | `cd frontend && npm test` | Pages rendered against a fake backend (results, filters from the URL, empty and error states, unknown routes), the API client, formatting, the typing delay with a simulated clock so it doesn't depend on machine speed, and the sign-in flow (register → nickname → top bar, wrong password, sign out, return to the previous page, the cross-site header on every change request) |
 
 Tests were checked by breaking the code on purpose (removing the wildcard escaping, the type filter, the typing delay, and so on) and confirming that a test fails each time.
 
@@ -190,9 +208,8 @@ Work goes through small branches and pull requests, each merged after review wit
 
 ## Roadmap
 
-1. **Sign-in:** guest browsing, plus username/password accounts (hashed passwords, token in a secure cookie). Users choose a nickname.
-2. **Favourites and comments:** users comment on their favourite Pokémon; only the author can edit or delete.
-3. **Later:** Google and GitHub sign-in (OAuth); database migrations with Alembic once user tables exist; a production setup that serves the built frontend and API from one origin; splitting the frontend bundle (currently about 569 kB, 178 kB gzipped).
+1. **Favourites and comments:** users comment on their favourite Pokémon; only the author can edit or delete.
+2. **Later:** Google and GitHub sign-in (OAuth); a production setup that serves the built frontend and API from one origin; splitting the frontend bundle (currently about 569 kB, 178 kB gzipped).
 
 ---
 

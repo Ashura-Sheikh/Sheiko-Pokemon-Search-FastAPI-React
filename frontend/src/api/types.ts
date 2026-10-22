@@ -25,6 +25,13 @@ export interface PokemonMoves {
   groups: MoveGroup[] // empty if the Pokémon isn't in this game
 }
 
+/** The signed-in user. `nickname` is null until they choose one. */
+export interface Me {
+  id: number
+  username: string
+  nickname: string | null
+}
+
 export interface SearchParams {
   q?: string
   generation?: number

@@ -1,5 +1,7 @@
 """Database tables and API response shapes."""
 
+from datetime import datetime
+
 from sqlmodel import Field, Relationship, SQLModel
 
 SPRITE_URL = (
@@ -85,3 +87,52 @@ class MoveGroup(SQLModel):
 class PokemonMoves(SQLModel):
     game: str
     groups: list[MoveGroup]  # empty if the Pokémon isn't in this game
+
+
+# --- Users and sign-in ------------------------------------------------------
+
+
+class User(SQLModel, table=True):
+    """An account. `username` is private (for signing in); `nickname` is public.
+
+    Both are unique regardless of case: `username` is stored lowercased, and
+    `nickname_key` is the lowercased nickname, with a unique index.
+    """
+
+    __tablename__ = "app_user"  # "user" is a reserved word in some databases
+
+    id: int | None = Field(default=None, primary_key=True)
+    username: str = Field(unique=True, index=True, max_length=30)
+    password_hash: str = Field(max_length=255)
+    nickname: str | None = Field(default=None, max_length=20)
+    nickname_key: str | None = Field(
+        default=None, unique=True, index=True, max_length=20
+    )
+    created_at: datetime
+
+
+class UserSession(SQLModel, table=True):
+    """A signed-in browser. The cookie holds a random token; only its SHA-256
+    hash is stored, so a leaked database can't be used to sign in."""
+
+    __tablename__ = "user_session"
+
+    token_hash: str = Field(primary_key=True, max_length=64)
+    user_id: int = Field(foreign_key="app_user.id", index=True)
+    created_at: datetime
+    expires_at: datetime = Field(index=True)
+
+
+class Credentials(SQLModel):
+    username: str
+    password: str
+
+
+class NicknameUpdate(SQLModel):
+    nickname: str
+
+
+class Me(SQLModel):
+    id: int
+    username: str
+    nickname: str | None
