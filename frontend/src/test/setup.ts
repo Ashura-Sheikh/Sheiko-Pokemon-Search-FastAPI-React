@@ -7,4 +7,23 @@ import { afterEach } from 'vitest'
 // condition is met).
 configure({ asyncUtilTimeout: 5000 })
 
-afterEach(() => cleanup())
+// jsdom has no matchMedia; MUI uses it to read the computer's light/dark setting.
+// Tests behave like a computer set to light mode.
+if (!window.matchMedia) {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList
+}
+
+afterEach(() => {
+  cleanup()
+  localStorage.clear() // the saved light/dark choice mustn't leak between tests
+})

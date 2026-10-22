@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy import func
 from sqlmodel import Session, col, select
 
+from app.counts import read_with_counts
 from app.db import get_session
 from app.models import (
     MoveGroup,
@@ -68,7 +69,7 @@ def search_pokemon(
         total=total,
         limit=limit,
         offset=offset,
-        items=[PokemonRead.from_db(p) for p in rows],
+        items=read_with_counts(session, rows),
     )
 
 
@@ -79,7 +80,7 @@ def get_pokemon(
     pokemon = session.get(Pokemon, pokemon_id)
     if pokemon is None:
         raise HTTPException(status_code=404, detail="Pokémon not found")
-    return PokemonRead.from_db(pokemon)
+    return read_with_counts(session, [pokemon])[0]
 
 
 @router.get("/pokemon/{pokemon_id}/moves", response_model=PokemonMoves)

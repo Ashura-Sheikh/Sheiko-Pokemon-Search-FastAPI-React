@@ -55,15 +55,21 @@ class PokemonRead(SQLModel):
     generation: int
     types: list[str]
     sprite_url: str
+    favourite_count: int = 0  # how many users have it in their favourites
+    comment_count: int = 0
 
     @classmethod
-    def from_db(cls, pokemon: Pokemon) -> "PokemonRead":
+    def from_db(
+        cls, pokemon: Pokemon, favourite_count: int = 0, comment_count: int = 0
+    ) -> "PokemonRead":
         return cls(
             id=pokemon.id,
             name=pokemon.name,
             generation=pokemon.generation,
             types=[t.type_name for t in pokemon.types],
             sprite_url=SPRITE_URL.format(id=pokemon.id),
+            favourite_count=favourite_count,
+            comment_count=comment_count,
         )
 
 

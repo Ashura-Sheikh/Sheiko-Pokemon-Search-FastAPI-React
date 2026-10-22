@@ -6,6 +6,7 @@ import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import { Link, Route, Routes } from 'react-router'
 
+import { ThemeToggle } from './components/ThemeToggle'
 import { UserMenu } from './components/UserMenu'
 import { AuthPage } from './pages/AuthPage'
 import { FavouritesPage } from './pages/FavouritesPage'
@@ -44,6 +45,7 @@ export default function App() {
             Pokémon Search
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
+          <ThemeToggle />
           <Button color="inherit" component={Link} to="/guide">
             Guide
           </Button>

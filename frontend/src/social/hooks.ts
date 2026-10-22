@@ -29,7 +29,10 @@ export function useToggleFavourite() {
   return useMutation({
     mutationFn: ({ pokemonId, on }: { pokemonId: number; on: boolean }) =>
       on ? addFavourite(pokemonId) : removeFavourite(pokemonId),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['favourites'] }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['favourites'] })
+      queryClient.invalidateQueries({ queryKey: ['pokemon'] }) // favourite counts
+    },
   })
 }
 
@@ -45,7 +48,10 @@ export function useComments(pokemonId: number) {
 /** Add, edit or delete a comment, then refresh that Pokémon's comments. */
 export function useCommentActions(pokemonId: number) {
   const queryClient = useQueryClient()
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['comments', pokemonId] })
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['comments', pokemonId] })
+    queryClient.invalidateQueries({ queryKey: ['pokemon'] }) // comment counts
+  }
   return {
     add: useMutation({ mutationFn: (body: string) => addComment(pokemonId, body), onSuccess: refresh }),
     edit: useMutation({

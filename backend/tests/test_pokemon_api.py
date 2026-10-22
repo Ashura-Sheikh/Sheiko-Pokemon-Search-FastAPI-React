@@ -18,6 +18,8 @@ def test_item_shape(client):
         "generation": 1,
         "types": ["grass", "poison"],
         "sprite_url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png",
+        "favourite_count": 0,
+        "comment_count": 0,
     }
 
 
