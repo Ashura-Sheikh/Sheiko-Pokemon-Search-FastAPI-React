@@ -2,6 +2,9 @@
 .env
 .env.*
 
+# Local database and PokeAPI cache (rebuilt by scripts/seed_pokemon.py)
+backend/data/
+
 # Virtual environment
 .venv/
 
