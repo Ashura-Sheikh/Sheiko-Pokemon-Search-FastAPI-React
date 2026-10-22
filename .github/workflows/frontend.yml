@@ -1,0 +1,45 @@
+name: Frontend
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      # Node version comes from frontend/.nvmrc (24), same as local.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # npm ci installs exactly what package-lock.json says, and fails if it's out of date.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (oxlint)
+        run: npm run lint
+
+      - name: Tests (Vitest)
+        run: npm test
+
+      # tsc -b type-checks in strict mode (the tests don't), then Vite builds.
+      - name: Type-check and build
+        run: npm run build
