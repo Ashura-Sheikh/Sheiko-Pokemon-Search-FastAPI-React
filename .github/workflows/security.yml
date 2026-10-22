@@ -32,3 +32,21 @@ jobs:
 
       - name: pip-audit
         run: uvx pip-audit@2.10.1 -r requirements-audit.txt --disable-pip --progress-spinner off
+
+  npm-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+
+      # Checks package-lock.json against the npm advisory database.
+      # Fails on high or critical issues; lower ones are reported but don't block.
+      - name: npm audit
+        run: npm audit --audit-level=high

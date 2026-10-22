@@ -7,6 +7,13 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
 
+  # Frontend packages in frontend/package.json / package-lock.json
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
   # Action versions used in .github/workflows/
   - package-ecosystem: "github-actions"
     directory: "/"
