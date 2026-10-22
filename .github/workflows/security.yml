@@ -16,10 +16,15 @@ jobs:
   pip-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v7
 
       - uses: astral-sh/setup-uv@v10.3.1
+        with:
+          working-directory: backend
 
       # Audits exactly the versions in uv.lock (with hashes), not whatever is newest.
       - name: Export locked dependencies

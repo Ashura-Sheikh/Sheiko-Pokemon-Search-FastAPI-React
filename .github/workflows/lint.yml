@@ -17,10 +17,15 @@ jobs:
   ruff:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v7
 
       - uses: astral-sh/setup-uv@v10.3.1
+        with:
+          working-directory: backend
 
       # Pinned ruff version, so a new ruff release can't break CI without a PR.
       - name: Ruff lint
