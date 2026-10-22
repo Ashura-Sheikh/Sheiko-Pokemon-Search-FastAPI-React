@@ -23,6 +23,9 @@ export function UserMenu() {
   }
   return (
     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+      <Button color="inherit" component={Link} to="/favourites">
+        Favourites
+      </Button>
       <Button
         color="inherit"
         component={Link}

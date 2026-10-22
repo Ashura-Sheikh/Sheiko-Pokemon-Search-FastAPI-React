@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.db import init_db
-from app.routers import auth, pokemon
+from app.routers import auth, pokemon, social
 
 
 @asynccontextmanager
@@ -15,6 +15,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="Pokémon App API", lifespan=lifespan)
 app.include_router(pokemon.router)
 app.include_router(auth.router)
+app.include_router(social.router)
 
 
 @app.get("/api/health")

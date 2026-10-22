@@ -170,11 +170,16 @@ def check_moves(moves, species_ids: set[int]) -> int:
 
 
 def write_db(session: Session, species, types, moves=()) -> None:
-    """Replace the Pokémon tables' contents in one transaction (safe to re-run)."""
+    """Write the Pokémon data in one transaction (safe to re-run).
+
+    Pokémon rows are updated in place, never deleted: users' favourites and
+    comments point at them, and SQLite enforces those foreign keys. Types and
+    moves belong only to the seed, so they're simply replaced.
+    """
     session.exec(delete(PokemonMove))
     session.exec(delete(PokemonType))
-    session.exec(delete(Pokemon))
-    session.add_all(Pokemon(id=i, name=n, generation=g) for i, n, g in species)
+    for i, n, g in species:
+        session.merge(Pokemon(id=i, name=n, generation=g))  # insert or update
     session.flush()
     session.add_all(PokemonType(pokemon_id=i, slot=s, type_name=t) for i, s, t in types)
     session.add_all(

@@ -50,6 +50,9 @@ export function mockBackend(options: { signedInAs?: Partial<FakeUser> } = {}) {
   const requests: string[] = []
   const sent: SentRequest[] = []
   const users: FakeUser[] = []
+  const favourites = new Map<number, Set<number>>() // user id -> Pokémon ids
+  const comments: { id: number; pokemon_id: number; user_id: number; body: string; edited: boolean }[] = []
+  let nextCommentId = 1
   let current: FakeUser | null = null
   if (options.signedInAs) {
     current = { id: 1, username: 'ash', password: 'pikachu123', nickname: null, ...options.signedInAs }
@@ -107,6 +110,62 @@ export function mockBackend(options: { signedInAs?: Partial<FakeUser> } = {}) {
       current = null
       return new Response(null, { status: 204 })
     }
+    const noContent = () => new Response(null, { status: 204 })
+    if (url.pathname === '/api/me/favourites') {
+      if (!current) return json({ detail: 'Sign in to do this' }, 401)
+      const ids = [...(favourites.get(current.id) ?? [])].sort((a, b) => a - b)
+      return json(SAMPLE.filter((p) => ids.includes(p.id)))
+    }
+    const fav = url.pathname.match(/^\/api\/me\/favourites\/(\d+)$/)
+    if (fav) {
+      if (!current) return json({ detail: 'Sign in to do this' }, 401)
+      const set = favourites.get(current.id) ?? new Set<number>()
+      favourites.set(current.id, set)
+      if (method === 'PUT') set.add(Number(fav[1]))
+      if (method === 'DELETE') set.delete(Number(fav[1]))
+      return noContent()
+    }
+    const commentList = url.pathname.match(/^\/api\/pokemon\/(\d+)\/comments$/)
+    if (commentList) {
+      const pid = Number(commentList[1])
+      if (method === 'POST') {
+        if (!current) return json({ detail: 'Sign in to do this' }, 401)
+        if (!current.nickname) return json({ detail: 'Choose a nickname before commenting' }, 403)
+        const text = String(body.body).trim()
+        if (!text || text.length > 500) return json({ detail: 'A comment must be 1–500 characters' }, 422)
+        comments.push({ id: nextCommentId++, pokemon_id: pid, user_id: current.id, body: text, edited: false })
+        return json({}, 201)
+      }
+      const viewer = current
+      return json(
+        comments
+          .filter((c) => c.pokemon_id === pid)
+          .reverse() // newest first
+          .map((c) => ({
+            id: c.id,
+            pokemon_id: c.pokemon_id,
+            author: users.find((u) => u.id === c.user_id)?.nickname ?? 'Unknown trainer',
+            body: c.body,
+            created_at: '2026-10-22T20:00:00Z',
+            updated_at: c.edited ? '2026-10-22T20:05:00Z' : null,
+            mine: viewer?.id === c.user_id,
+          })),
+      )
+    }
+    const oneComment = url.pathname.match(/^\/api\/comments\/(\d+)$/)
+    if (oneComment) {
+      const c = comments.find((x) => x.id === Number(oneComment[1]))
+      if (!current) return json({ detail: 'Sign in to do this' }, 401)
+      if (!c) return json({ detail: 'Comment not found' }, 404)
+      if (c.user_id !== current.id) return json({ detail: 'You can only change your own comments' }, 403)
+      if (method === 'DELETE') {
+        comments.splice(comments.indexOf(c), 1)
+        return noContent()
+      }
+      c.body = String(body.body).trim()
+      c.edited = true
+      return json({})
+    }
 
     if (url.pathname === '/api/types') return json(['electric', 'fairy', 'grass', 'poison', 'psychic'])
     if (url.pathname === '/api/generations') return json([1, 2])
@@ -134,7 +193,12 @@ export function mockBackend(options: { signedInAs?: Partial<FakeUser> } = {}) {
     return json({ detail: 'Not Found' }, 404)
   })
   vi.stubGlobal('fetch', fetchMock)
-  return { requests, sent, fetchMock, users }
+  /** Add a comment directly, as if another user had posted it. */
+  function seedComment(pokemonId: number, author: FakeUser, text: string) {
+    if (!users.includes(author)) users.push(author)
+    comments.push({ id: nextCommentId++, pokemon_id: pokemonId, user_id: author.id, body: text, edited: false })
+  }
+  return { requests, sent, fetchMock, users, seedComment }
 }
 
 /** Renders the whole app (top bar + routes) at a given URL, with a fresh query cache. */

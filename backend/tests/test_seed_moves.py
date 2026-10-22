@@ -88,5 +88,6 @@ def test_write_db_replaces_moves(session):
     moves = parse_moves(PIKACHU)
     write_db(session, species, [(25, 1, "electric")], moves)
     write_db(session, species, [(25, 1, "electric")], moves)  # re-run: no duplicates
-    assert [p.id for p in session.exec(select(Pokemon))] == [25]
+    assert session.get(Pokemon, 25).name == "pikachu"
+    # Moves belong to the seed: replaced by exactly this run's 3 rows.
     assert len(session.exec(select(PokemonMove)).all()) == 3

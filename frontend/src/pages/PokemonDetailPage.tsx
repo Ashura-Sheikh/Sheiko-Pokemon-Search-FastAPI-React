@@ -10,6 +10,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useLocation, useNavigate, useParams } from 'react-router'
 
 import { ApiError, getPokemon } from '../api/client'
+import { CommentsSection } from '../components/CommentsSection'
+import { FavouriteButton } from '../components/FavouriteButton'
 import { MovesSection } from '../components/MovesSection'
 import { TypeChip } from '../components/TypeChip'
 import { displayName, generationLabel, pokedexNumber } from '../lib/format'
@@ -73,6 +75,9 @@ export function PokemonDetailPage() {
                   <TypeChip key={type} type={type} />
                 ))}
               </Stack>
+              <div>
+                <FavouriteButton pokemonId={query.data.id} />
+              </div>
             </Stack>
           </Stack>
         </Paper>
@@ -80,6 +85,7 @@ export function PokemonDetailPage() {
 
       {/* Moves load separately, only once the Pokémon itself has loaded. */}
       {query.data && <MovesSection pokemonId={query.data.id} />}
+      {query.data && <CommentsSection pokemonId={query.data.id} />}
     </Stack>
   )
 }

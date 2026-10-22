@@ -2,9 +2,9 @@
 
 A full-stack app to search every Pokémon from Generation I to IX (1,025 species) by name or number, filter by generation and type, and open a detail page for each.
 
-**Working now:** search, filters, pagination, and detail pages with each Pokémon's Scarlet/Violet moves; browse as a guest or sign in with a username and password and choose a public nickname. FastAPI + SQLite backend, React + TypeScript frontend, CI on every pull request.
+**Working now:** search, filters, pagination, and detail pages with each Pokémon's Scarlet/Violet moves; browse as a guest or sign in with a username and password and choose a public nickname; keep a list of favourites; comment on any Pokémon and edit or delete your own comments. An in-app **User guide** (`/guide`) explains each feature with examples. FastAPI + SQLite backend, React + TypeScript frontend, CI on every pull request.
 
-**Next:** favourites and comments. See [Roadmap](#roadmap).
+**Next:** see [Roadmap](#roadmap).
 
 | Layer | Stack |
 |---|---|
@@ -91,6 +91,11 @@ sequenceDiagram
 | **Cross-site request check** on every change request: an `X-Requested-By` header, plus refusing `Sec-Fetch-Site: cross-site` | Cookies are sent automatically, so another site could otherwise trigger actions as the user (CSRF). It can't add a custom header without CORS, which this API never allows | The frontend must send the header (one place: `api/client.ts`) |
 | **Username and nickname separate** | The username stays private (it's half of the login); the public nickname can change. Both unique regardless of case | Two names to explain to users |
 | **Alembic migrations** | User data can't be re-created by re-seeding, so schema changes must upgrade the database in place. A test fails if the models and migrations ever disagree | Each model change needs a migration |
+| **Re-seeding updates Pokémon in place** (never deletes them) | Favourites and comments point at Pokémon, and SQLite enforces those foreign keys; users' data survives a re-seed | Only types and moves are fully replaced on each run |
+| **Comments on any Pokémon; favourites a separate list** | Sheikh's choice: commenting doesn't require favouriting first | — |
+| **Only the author can edit or delete a comment**; comments show the nickname, never the username | Checked on the server (403 for anyone else), not just hidden in the page | — |
+| **Comments shown as plain text** | React escapes them, so HTML or script in a comment is displayed, never run (tested) | No formatting in comments |
+| **Favourites use `PUT`/`DELETE`** | Both are idempotent: pressing twice can't create duplicates or errors | — |
 | **Seed refuses to save incomplete data** | A Pokémon with no type, a duplicate number or two types in one slot fails the run instead of quietly producing bad data | A broken upstream response stops the seed until it's looked at |
 | **SQLite** | No server to run; one file; plenty for a read-heavy app of this size | Not for many concurrent writers. Going through SQLModel/SQLAlchemy keeps a later move to PostgreSQL small: the connection settings in `db.py` plus migrations |
 | **Types in their own table** (`pokemon_type`, one row per slot) | Filtering by type is a normal indexed SQL query, and slot order (primary/secondary) is kept | One extra join when reading a Pokémon |
@@ -114,16 +119,18 @@ backend/
     models.py         Tables (pokemon, pokemon_type, pokemon_move, app_user, user_session)
     routers/pokemon.py  /api/pokemon, /api/pokemon/{id}(/moves), /api/types, /api/generations
     routers/auth.py   /api/auth/register, /login, /logout; /api/me
-  migrations/         Alembic: 0001 Pokémon tables, 0002 users and sessions
+    routers/social.py /api/me/favourites, /api/pokemon/{id}/comments, /api/comments/{id}
+  migrations/         Alembic: 0001 Pokémon tables, 0002 users and sessions, 0003 favourites and comments
   scripts/seed_pokemon.py  One-off PokeAPI → SQLite loader (cached, validated)
-  tests/              pytest: API, sign-in security, migrations, seed logic
+  tests/              pytest: API, sign-in security, favourites/comments permissions, migrations, seed logic
   main.py             Runs the server (uvicorn, 127.0.0.1:8000)
 frontend/
   src/
     api/              Typed API client (sends the cross-site header) and response types
     auth/             useMe / useSignIn / useRegister / useSignOut / useSetNickname
-    pages/            Search, PokemonDetail, Auth (sign in / register), Nickname, NotFound
-    components/       PokemonCard, TypeChip, MovesSection, UserMenu
+    social/           useFavourites / useToggleFavourite / useComments / useCommentActions
+    pages/            Search, PokemonDetail, Auth (sign in / register), Nickname, Favourites, Guide, NotFound
+    components/       PokemonCard, TypeChip, MovesSection, FavouriteButton, CommentsSection, UserMenu
     lib/              Formatting, URL search params, moves labels, returnPath, useDebouncedValue
     test/             Test setup and a fake backend for page tests
   vite.config.ts      Dev server, /api proxy, test settings
@@ -174,6 +181,11 @@ Interactive docs at `/docs` (generated by FastAPI from the code).
 | `POST /api/auth/logout` | Ends the session on the server and clears the cookie |
 | `GET /api/me` | The signed-in user `{id, username, nickname}`, or 401 for a guest |
 | `PATCH /api/me` | `{nickname}`: set or change the nickname. 409 if taken |
+| `GET /api/me/favourites` | Your favourite Pokémon, in Pokédex order (signed in) |
+| `PUT` / `DELETE /api/me/favourites/{id}` | Add or remove a favourite (both idempotent) |
+| `GET /api/pokemon/{id}/comments` | Comments on a Pokémon, newest first, by nickname, with `mine` for your own. Open to guests |
+| `POST /api/pokemon/{id}/comments` | `{body}` (1–500 characters). Signed in with a nickname (403 otherwise) |
+| `PATCH` / `DELETE /api/comments/{id}` | Edit or delete **your own** comment (403 for anyone else's) |
 | `GET /api/health` | Health check |
 
 Change requests (`POST`/`PATCH`/`DELETE`) must send `X-Requested-By: pokemon-app`, or they're refused with 403.
@@ -185,7 +197,7 @@ Change requests (`POST`/`PATCH`/`DELETE`) must send `X-Requested-By: pokemon-app
 | | Command | What's covered |
 |---|---|---|
 | Backend | `cd backend && uv run pytest` | Every endpoint against an in-memory SQLite database (search, filters, pagination, validation, 404s, wildcard escaping), the seed logic against hand-made PokeAPI-shaped data, sign-in security (hashing, session storage and expiry, logout, the login limit, the cross-site check, cookie flags, nickname rules), and migrations (fresh database matches the models; an older database upgrades without losing data). No test touches the network or the real database. |
-| Frontend | `cd frontend && npm test` | Pages rendered against a fake backend (results, filters from the URL, empty and error states, unknown routes), the API client, formatting, the typing delay with a simulated clock so it doesn't depend on machine speed, and the sign-in flow (register → nickname → top bar, wrong password, sign out, return to the previous page, the cross-site header on every change request) |
+| Frontend | `cd frontend && npm test` | Pages rendered against a fake backend (results, filters from the URL, empty and error states, unknown routes), the API client, formatting, the typing delay with a simulated clock so it doesn't depend on machine speed, and the sign-in flow (register → nickname → top bar, wrong password, sign out, return to the previous page, the cross-site header on every change request), favourites (add, list, remove; guests asked to sign in), comments (post, edit, delete your own; no Edit/Delete on others'; HTML shown as text) and the User guide |
 
 Tests were checked by breaking the code on purpose (removing the wildcard escaping, the type filter, the typing delay, and so on) and confirming that a test fails each time.
 
@@ -208,8 +220,7 @@ Work goes through small branches and pull requests, each merged after review wit
 
 ## Roadmap
 
-1. **Favourites and comments:** users comment on their favourite Pokémon; only the author can edit or delete.
-2. **Later:** Google and GitHub sign-in (OAuth); a production setup that serves the built frontend and API from one origin; splitting the frontend bundle (currently about 569 kB, 178 kB gzipped).
+1. **Later:** Google and GitHub sign-in (OAuth); a production setup that serves the built frontend and API from one origin; splitting the frontend bundle (currently about 596 kB, 185 kB gzipped).
 
 ---
 
