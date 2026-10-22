@@ -32,6 +32,21 @@ class PokemonType(SQLModel, table=True):
     pokemon: Pokemon = Relationship(back_populates="types")
 
 
+class PokemonMove(SQLModel, table=True):
+    """A move a Pokémon can learn in Scarlet/Violet (including its DLC), and how.
+
+    The same move can be learned more than one way (e.g. level-up and TM), so the
+    key is (pokemon, move, method). `level` is only set for level-up moves.
+    """
+
+    __tablename__ = "pokemon_move"
+
+    pokemon_id: int = Field(foreign_key="pokemon.id", primary_key=True)
+    move_name: str = Field(primary_key=True, max_length=50)
+    method: str = Field(primary_key=True, max_length=30)
+    level: int | None = None
+
+
 class PokemonRead(SQLModel):
     id: int
     name: str
@@ -55,3 +70,18 @@ class PokemonPage(SQLModel):
     limit: int
     offset: int
     items: list[PokemonRead]
+
+
+class MoveRead(SQLModel):
+    name: str
+    level: int | None = None
+
+
+class MoveGroup(SQLModel):
+    method: str  # "level-up", "machine" (TM), "egg", "tutor", ...
+    moves: list[MoveRead]
+
+
+class PokemonMoves(SQLModel):
+    game: str
+    groups: list[MoveGroup]  # empty if the Pokémon isn't in this game

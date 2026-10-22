@@ -15,6 +15,16 @@ export interface PokemonPage {
   items: Pokemon[]
 }
 
+export interface MoveGroup {
+  method: string // "level-up", "machine" (TM), "egg", "tutor", ...
+  moves: { name: string; level: number | null }[]
+}
+
+export interface PokemonMoves {
+  game: string
+  groups: MoveGroup[] // empty if the Pokémon isn't in this game
+}
+
 export interface SearchParams {
   q?: string
   generation?: number

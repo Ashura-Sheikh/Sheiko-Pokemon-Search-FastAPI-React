@@ -1,4 +1,4 @@
-import type { Pokemon, PokemonPage, SearchParams } from './types'
+import type { Pokemon, PokemonMoves, PokemonPage, SearchParams } from './types'
 
 export class ApiError extends Error {
   readonly status: number
@@ -36,6 +36,10 @@ export function searchPokemon(params: SearchParams, signal?: AbortSignal) {
 
 export function getPokemon(id: number, signal?: AbortSignal) {
   return getJson<Pokemon>(`/api/pokemon/${id}`, signal)
+}
+
+export function getPokemonMoves(id: number, signal?: AbortSignal) {
+  return getJson<PokemonMoves>(`/api/pokemon/${id}/moves`, signal)
 }
 
 export function listTypes(signal?: AbortSignal) {

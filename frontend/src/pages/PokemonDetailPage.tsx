@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useLocation, useNavigate, useParams } from 'react-router'
 
 import { ApiError, getPokemon } from '../api/client'
+import { MovesSection } from '../components/MovesSection'
 import { TypeChip } from '../components/TypeChip'
 import { displayName, generationLabel, pokedexNumber } from '../lib/format'
 
@@ -76,6 +77,9 @@ export function PokemonDetailPage() {
           </Stack>
         </Paper>
       )}
+
+      {/* Moves load separately, only once the Pokémon itself has loaded. */}
+      {query.data && <MovesSection pokemonId={query.data.id} />}
     </Stack>
   )
 }

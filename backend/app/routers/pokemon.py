@@ -8,7 +8,19 @@ from sqlalchemy import func
 from sqlmodel import Session, col, select
 
 from app.db import get_session
-from app.models import Pokemon, PokemonPage, PokemonRead, PokemonType
+from app.models import (
+    MoveGroup,
+    MoveRead,
+    Pokemon,
+    PokemonMove,
+    PokemonMoves,
+    PokemonPage,
+    PokemonRead,
+    PokemonType,
+)
+
+# How move groups are ordered on the page; any other method comes after these.
+METHOD_ORDER = ["level-up", "machine", "egg", "tutor"]
 
 router = APIRouter(prefix="/api", tags=["pokemon"])
 
@@ -68,6 +80,44 @@ def get_pokemon(
     if pokemon is None:
         raise HTTPException(status_code=404, detail="Pokémon not found")
     return PokemonRead.from_db(pokemon)
+
+
+@router.get("/pokemon/{pokemon_id}/moves", response_model=PokemonMoves)
+def get_pokemon_moves(
+    session: SessionDep, pokemon_id: Annotated[int, Path(ge=1)]
+) -> PokemonMoves:
+    """Scarlet/Violet moves, grouped by how they're learned.
+
+    Level-up moves are ordered by level, everything else by name. A Pokémon that
+    isn't in Scarlet/Violet returns no groups (not a 404).
+    """
+    if session.get(Pokemon, pokemon_id) is None:
+        raise HTTPException(status_code=404, detail="Pokémon not found")
+
+    rows = session.exec(
+        select(PokemonMove).where(PokemonMove.pokemon_id == pokemon_id)
+    ).all()
+
+    by_method: dict[str, list[PokemonMove]] = {}
+    for row in rows:
+        by_method.setdefault(row.method, []).append(row)
+
+    def method_rank(method: str) -> tuple[int, str]:
+        known = (
+            METHOD_ORDER.index(method) if method in METHOD_ORDER else len(METHOD_ORDER)
+        )
+        return (known, method)
+
+    groups = []
+    for method in sorted(by_method, key=method_rank):
+        moves = sorted(by_method[method], key=lambda r: (r.level or 0, r.move_name))
+        groups.append(
+            MoveGroup(
+                method=method,
+                moves=[MoveRead(name=r.move_name, level=r.level) for r in moves],
+            )
+        )
+    return PokemonMoves(game="Scarlet/Violet", groups=groups)
 
 
 @router.get("/types", response_model=list[str])
