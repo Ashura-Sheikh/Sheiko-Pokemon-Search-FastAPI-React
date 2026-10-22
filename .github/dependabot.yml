@@ -13,6 +13,11 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      # @types/node must match the Node version we run (24, see frontend/.nvmrc).
+      # Minor and patch updates still come through; remove this when moving Node up.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   # Action versions used in .github/workflows/
   - package-ecosystem: "github-actions"
