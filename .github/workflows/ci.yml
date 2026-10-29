@@ -27,7 +27,7 @@ jobs:
 
       # Installs uv and the Python version from backend/.python-version (3.12).
       # setup-uv has no floating "v10" tag, so the exact release is pinned.
-      - uses: astral-sh/setup-uv@v10.3.1
+      - uses: astral-sh/setup-uv@v10.3.2
         with:
           working-directory: backend
           enable-cache: true
